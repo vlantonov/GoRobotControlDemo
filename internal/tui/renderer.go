@@ -6,25 +6,36 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vlantonov/GoRobotControlDemo/internal/grid"
 )
 
-// Renderer renders grid snapshots to an ANSI terminal.
+// Renderer renders grid snapshots to an ANSI terminal at a configurable FPS.
 type Renderer struct {
-	w io.Writer
+	w   io.Writer
+	fps int
 }
 
-// NewRenderer returns a Renderer that writes to stdout.
-func NewRenderer() *Renderer {
-	return &Renderer{w: os.Stdout}
+// NewRenderer returns a Renderer that writes to stdout at the given frames-per-second.
+func NewRenderer(fps int) *Renderer {
+	return &Renderer{w: os.Stdout, fps: fps}
 }
 
-// Run reads from snapCh and redraws the terminal on each snapshot until
+// NewRendererWriter returns a Renderer that writes to w at the given FPS.
+// Useful in tests to capture output without a real terminal.
+func NewRendererWriter(w io.Writer, fps int) *Renderer {
+	return &Renderer{w: w, fps: fps}
+}
+
+// Run reads from snapCh and redraws the terminal at the configured FPS until
 // ctx is cancelled. ANSI escape sequences are used for in-place overwriting.
 func (r *Renderer) Run(ctx context.Context, snapCh <-chan grid.GridSnapshot) {
+	ticker := time.NewTicker(time.Second / time.Duration(r.fps))
+	defer ticker.Stop()
 	fmt.Fprint(r.w, "\x1b[?25l\x1b[s") // hide cursor; save position
 	defer r.restore()
+	var latest *grid.GridSnapshot
 	for {
 		select {
 		case <-ctx.Done():
@@ -33,7 +44,12 @@ func (r *Renderer) Run(ctx context.Context, snapCh <-chan grid.GridSnapshot) {
 			if !ok {
 				return
 			}
-			r.draw(snap)
+			latest = &snap
+		case <-ticker.C:
+			if latest != nil {
+				r.draw(*latest)
+				latest = nil
+			}
 		}
 	}
 }

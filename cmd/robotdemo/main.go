@@ -26,6 +26,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error: --tick-ms must be a positive integer")
 		os.Exit(1)
 	}
+	if cfg.FPS <= 0 {
+		fmt.Fprintln(os.Stderr, "error: --fps must be a positive integer")
+		os.Exit(1)
+	}
 	if cfg.NumRobots > cfg.GridWidth*cfg.GridHeight {
 		fmt.Fprintf(os.Stderr,
 			"error: --robots (%d) exceeds total grid cells (%d×%d = %d)\n",

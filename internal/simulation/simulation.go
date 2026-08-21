@@ -53,7 +53,7 @@ func New(cfg config.Config) *Simulation {
 		cfg:      cfg,
 		g:        g,
 		robots:   robots,
-		renderer: tui.NewRenderer(),
+		renderer: tui.NewRenderer(cfg.FPS),
 		tickChs:  tickChs,
 	}
 }
@@ -100,7 +100,7 @@ func (s *Simulation) Run(ctx context.Context) {
 				for _, ch := range s.tickChs {
 					select {
 					case ch <- t: // deliver tick
-					default:     // robot still on last tick; skip (no backpressure)
+					default: // robot still on last tick; skip (no backpressure)
 					}
 				}
 			case <-ctx.Done():

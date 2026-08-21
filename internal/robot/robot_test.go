@@ -135,3 +135,39 @@ func TestRun_StaysPutWhenSurrounded(t *testing.T) {
 		t.Fatal("robot goroutine did not exit after cancel")
 	}
 }
+
+// TestTryMove_CancelWhileWaitingForReply exercises the ctx.Done() branch inside
+// tryMove that fires while the robot is waiting on respCh. We achieve this by
+// NOT starting the coordinator (so no one ever writes to the response channel),
+// then cancelling the context to unblock the robot.
+func TestTryMove_CancelWhileWaitingForReply(t *testing.T) {
+	// 2×1 grid: robot at (0,0) with one valid neighbour at (1,0).
+	// claimCh buffer = 2×1 = 2, so the send succeeds without a reader.
+	g := grid.NewGrid(2, 1)
+	grid.InitialPlace(g, 1, 0, 0)
+	// grid.Run is NOT started — nobody replies to respCh.
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	tickCh := make(chan time.Time, 1)
+	r := robot.New(1, grid.Pos{X: 0, Y: 0})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		r.Run(ctx, g, tickCh)
+	}()
+
+	// Send a tick so the robot enters tryMove, enqueues its ClaimRequest, and
+	// then blocks on respCh waiting for a reply that will never arrive.
+	tickCh <- time.Now()
+	// Give the robot time to reach the respCh select.
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("robot did not exit after cancel while waiting for reply")
+	}
+}
