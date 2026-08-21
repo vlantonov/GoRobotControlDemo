@@ -593,7 +593,7 @@ sequenceDiagram
     main->>robots: ctx.Done()
     robots-->>main: each returns (select on ctx.Done())
 
-    Note over robots,coord: In-flight ClaimRequests have buf=1 RespCh;<br/>coordinator responds or robots time out on ctx.Done()
+    Note over robots,coord: In-flight ClaimRequests have buf=1 RespCh - coordinator responds or robots time out on ctx.Done()
 
     main->>coord: ctx.Done()
     coord->>coord: drain claimCh (respond false)
